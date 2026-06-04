@@ -28,12 +28,10 @@ export default function Study() {
   const [finished, setFinished] = useState(false);
   const inited = useRef(false);
 
-  // Idioma para o TTS: do deck específico, ou do deck do card atual.
   const current = queue[0];
   const deckOfCurrent = current ? decks.find((d) => d.id === current.deckId) : undefined;
   const lang = deckOfCurrent?.lang ?? 'en-US';
 
-  // Inicializa a fila uma única vez (snapshot dos cards devidos).
   useEffect(() => {
     if (inited.current || loading) return;
     const initial = deckId ? dueOf(deckId) : dueAll();
@@ -43,7 +41,6 @@ export default function Study() {
     if (initial.length === 0) setFinished(true);
   }, [loading, deckId, dueOf, dueAll]);
 
-  // Fala a frente automaticamente ao trocar de card (se houver voz).
   useEffect(() => {
     if (current && supported && !flipped) {
       const t = setTimeout(() => speak(current.front, lang), 180);
@@ -55,8 +52,6 @@ export default function Study() {
     if (!user || !current) return;
     const now = Date.now();
     const sched = schedule(current, rating, now);
-
-    // Persiste (otimista: a UI avança na hora; o Firestore sincroniza depois).
     updateCard(user.uid, current.id, sched);
     logReview(user.uid, {
       cardId: current.id,
@@ -65,36 +60,27 @@ export default function Study() {
       reviewedAt: now,
       intervalAfter: sched.interval,
     });
-
     setFlipped(false);
     setQueue((q) => {
       const [, ...rest] = q;
       if (rating === 'again') {
-        // Volta pro fim da sessão com o estado atualizado.
         const updated = { ...current, ...sched };
-        const next = [...rest, updated];
-        return next;
+        return [...rest, updated];
       }
       if (rest.length === 0) setFinished(true);
       return rest;
     });
   }
 
-  if (loading || !inited.current) {
-    return <CenterMsg text="Preparando sessão…" />;
-  }
-
-  if (finished) {
-    return <Done total={total} onHome={() => nav('/')} />;
-  }
-
+  if (loading || !inited.current) return <CenterMsg text="Preparando sessão…" />;
+  if (finished) return <Done total={total} onHome={() => nav('/')} />;
   if (!current) return <CenterMsg text="Nada pra revisar." />;
 
   const done = total - queue.length;
   const progress = total > 0 ? (done / total) * 100 : 0;
 
   return (
-    <main className="min-h-dvh flex flex-col px-5 pt-6 pb-6">
+    <main className="flex flex-col px-5 pt-6 pb-6" style={{ minHeight: '100svh' }}>
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => nav(-1)} className="icon-btn" aria-label="Sair da sessão"><BackIcon /></button>
         <div className="flex-1" style={{ height: 4, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
@@ -126,7 +112,6 @@ export default function Study() {
           {current.hint && (
             <div style={{ fontSize: 13, color: 'var(--txt-3)', fontStyle: 'italic', marginTop: 8 }}>{current.hint}</div>
           )}
-
           {supported && (
             <button
               onClick={(e) => { e.stopPropagation(); speak(current.front, lang); }}
@@ -136,7 +121,6 @@ export default function Study() {
               <SpeakerIcon size={15} /> ouvir
             </button>
           )}
-
           {flipped && (
             <div className="animate-fade-up" style={{ marginTop: 22, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontSize: 17, color: 'var(--txt)', lineHeight: 1.5 }}>{current.back}</div>
@@ -182,7 +166,7 @@ export default function Study() {
 
 function CenterMsg({ text }: { text: string }) {
   return (
-    <main className="min-h-dvh flex items-center justify-center">
+    <main className="flex items-center justify-center" style={{ minHeight: '100svh' }}>
       <p style={{ color: 'var(--txt-3)', fontSize: 14 }}>{text}</p>
     </main>
   );
@@ -190,7 +174,7 @@ function CenterMsg({ text }: { text: string }) {
 
 function Done({ total, onHome }: { total: number; onHome: () => void }) {
   return (
-    <main className="min-h-dvh flex flex-col items-center justify-center px-6 text-center animate-fade-up">
+    <main className="flex flex-col items-center justify-center px-6 text-center animate-fade-up" style={{ minHeight: '100svh' }}>
       <div
         className="inline-flex items-center justify-center mb-6"
         style={{ width: 64, height: 64, borderRadius: 99, background: 'var(--good-bg)', color: 'var(--good-txt)', border: '1px solid var(--good-b)' }}
