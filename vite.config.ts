@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Recall — repetição espaçada',
-        short_name: 'Recall',
+        name: 'MyEnglish — repetição espaçada',
+        short_name: 'MyEnglish',
         description: 'Flashcards com repetição espaçada e áudio. Estude qualquer idioma.',
         start_url: '/',
         scope: '/',
