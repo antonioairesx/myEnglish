@@ -19,10 +19,9 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-dvh flex flex-col justify-between px-6 py-12 animate-fade-in">
+    <main className="flex flex-col justify-between px-6 py-12 animate-fade-in" style={{ minHeight: '100svh' }}>
       <div className="flex-1 flex flex-col justify-center">
         <img src="/icons/icon-192x192.png" alt="MyEnglish" style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 28 }} />
-
         <h1 className="font-display" style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05 }}>
           Repetição<br />espaçada,<br />sem fricção.
         </h1>
