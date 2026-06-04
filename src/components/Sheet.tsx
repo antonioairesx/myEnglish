@@ -24,13 +24,17 @@ export default function Sheet({
         role="dialog"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="w-full animate-fade-up"
         style={{
-          maxWidth: 560, background: 'var(--surface)',
-          borderTopLeftRadius: 22, borderTopRightRadius: 22,
+          width: '100%',
+          maxWidth: 560,
+          background: 'var(--surface)',
+          borderTopLeftRadius: 22,
+          borderTopRightRadius: 22,
           borderTop: '1px solid var(--border)',
-          padding: '8px 20px calc(20px + env(safe-area-inset-bottom))',
+          padding: '8px 20px 32px',
+          paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
         }}
+        className="animate-fade-up"
       >
         <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border-2)', margin: '6px auto 14px' }} />
         <h2 className="font-display" style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 16 }}>
