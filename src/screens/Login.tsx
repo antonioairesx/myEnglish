@@ -21,18 +21,7 @@ export default function Login() {
   return (
     <main className="min-h-dvh flex flex-col justify-between px-6 py-12 animate-fade-in">
       <div className="flex-1 flex flex-col justify-center">
-        <div
-          className="inline-flex items-center justify-center mb-7"
-          style={{
-            width: 56, height: 56, borderRadius: 16,
-            background: 'var(--accent)', color: 'var(--on-accent)',
-          }}
-          aria-hidden
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m12 2 9 5-9 5-9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" />
-          </svg>
-        </div>
+        <img src="/icons/icon-192x192.png" alt="MyEnglish" style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 28 }} />
 
         <h1 className="font-display" style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05 }}>
           Repetição<br />espaçada,<br />sem fricção.
