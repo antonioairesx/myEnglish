@@ -119,4 +119,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .card-surface {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
   }
+  body {
+  position: fixed;
+  width: 100%;
+  overflow-y: scroll;
+}
 }
