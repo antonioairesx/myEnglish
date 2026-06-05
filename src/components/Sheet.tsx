@@ -22,6 +22,7 @@ export default function Sheet({
     <>
       <div
         onClick={onClose}
+        className="animate-fade-in"
         style={{
           position: 'fixed', inset: 0, zIndex: 30,
           background: 'oklch(20% 0.02 250 / 0.6)',
@@ -33,8 +34,9 @@ export default function Sheet({
         style={{
           position: 'fixed',
           bottom: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: 0,
+          right: 0,
+          marginInline: 'auto',
           width: '100%',
           maxWidth: 480,
           zIndex: 31,
@@ -46,8 +48,8 @@ export default function Sheet({
           maxHeight: '85dvh',
           overflowY: 'auto',
           height: 'fit-content',
+          animation: 'sheet-up 0.32s var(--ease-out) both',
         }}
-        className="animate-fade-up"
       >
         <div style={{
           width: 36, height: 4, borderRadius: 99,
