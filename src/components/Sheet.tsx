@@ -7,41 +7,45 @@ export default function Sheet({
 }) {
   useEffect(() => {
     if (!open) return;
+    document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-30 flex items-end justify-center animate-fade-in"
-      style={{ background: 'oklch(20% 0.02 250 / 0.45)' }}
-      onClick={onClose}
-    >
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 30,
+          background: 'oklch(20% 0.02 250 / 0.6)',
+        }}
+      />
       <div
         role="dialog"
         aria-label={title}
-        onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%',
-          maxWidth: 560,
+          position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '100%', maxWidth: 480, zIndex: 31,
           background: 'var(--surface)',
-          borderTopLeftRadius: 22,
-          borderTopRightRadius: 22,
+          borderTopLeftRadius: 22, borderTopRightRadius: 22,
           borderTop: '1px solid var(--border)',
-          padding: '8px 20px 32px',
-          paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
+          padding: '8px 20px 40px',
         }}
         className="animate-fade-up"
       >
-        <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border-2)', margin: '6px auto 14px' }} />
+        <div style={{ width: 36, height: 4, borderRadius: 99, background: 'var(--border-2)', margin: '6px auto 16px' }} />
         <h2 className="font-display" style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 16 }}>
           {title}
         </h2>
         {children}
       </div>
-    </div>
+    </>
   );
 }
