@@ -23,7 +23,7 @@ export default function Sheet({
       <div
         onClick={onClose}
         className="animate-fade-in"
-        style={{
+        ={{
           position: 'fixed', inset: 0, zIndex: 30,
           background: 'oklch(20% 0.02 250 / 0.6)',
         }}
@@ -31,7 +31,7 @@ export default function Sheet({
       <div
         role="dialog"
         aria-label={title}
-        style={{
+        ={{
           position: 'fixed',
           bottom: 0,
           left: 0,
@@ -44,22 +44,23 @@ export default function Sheet({
           borderTopLeftRadius: 22,
           borderTopRightRadius: 22,
           borderTop: '1px solid var(--border)',
-          padding: '8px 20px 40px',
-          maxHeight: '85dvh',
+          padding: '8px 20px 0',
+          maxHeight: 'calc(90dvh - env(safe-area-inset-top))',
           overflowY: 'auto',
           height: 'fit-content',
+          paddingBottom: 'calc(40px + env(safe-area-inset-bottom))',
           animation: 'sheet-up 0.32s var(--ease-out) both',
         }}
       >
-        <div style={{
+        <div ={{
           width: 36, height: 4, borderRadius: 99,
           background: 'var(--border-2)', margin: '6px auto 16px',
         }} />
-        <div style={{
+        <div ={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: 16, gap: 12,
         }}>
-          <h2 className="font-display" style={{
+          <h2 className="font-display" ={{
             fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em',
           }}>
             {title}
@@ -69,7 +70,7 @@ export default function Sheet({
             onClick={onClose}
             aria-label="Fechar"
             className="icon-btn"
-            style={{ flexShrink: 0, marginRight: -6 }}
+            ={{ flexShrink: 0, marginRight: -6 }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2" strokeLinecap="round">
