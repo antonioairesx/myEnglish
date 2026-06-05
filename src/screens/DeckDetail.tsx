@@ -135,7 +135,7 @@ export default function DeckDetail() {
 
       <Sheet open={adding} onClose={() => setAdding(false)} title={editing ? 'Editar card' : 'Novo card'}>
         <label style={labelStyle}>Frente</label>
-        <input className="field" value={front} onChange={(e) => setFront(e.target.value)} placeholder="serendipity" autoFocus />
+        <input className="field" value={front} onChange={(e) => setFront(e.target.value)} placeholder="serendipity" />
         <label style={{ ...labelStyle, marginTop: 14 }}>Verso</label>
         <textarea className="field" value={back} onChange={(e) => setBack(e.target.value)} placeholder="feliz acidente · descoberta inesperada" rows={2} style={{ resize: 'none' }} />
         <label style={{ ...labelStyle, marginTop: 14 }}>Dica <span style={{ color: 'var(--txt-3)', fontWeight: 400 }}>(opcional)</span></label>
