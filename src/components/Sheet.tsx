@@ -19,7 +19,7 @@ export default function Sheet({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <>
       <div
         onClick={onClose}
@@ -81,6 +81,7 @@ export default function Sheet({
         </div>
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
