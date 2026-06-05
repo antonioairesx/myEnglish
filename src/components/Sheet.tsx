@@ -55,12 +55,28 @@ export default function Sheet({
           width: 36, height: 4, borderRadius: 99,
           background: 'var(--border-2)', margin: '6px auto 16px',
         }} />
-        <h2 className="font-display" style={{
-          fontSize: 20, fontWeight: 700,
-          letterSpacing: '-0.03em', marginBottom: 16,
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 16, gap: 12,
         }}>
-          {title}
-        </h2>
+          <h2 className="font-display" style={{
+            fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em',
+          }}>
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="icon-btn"
+            style={{ flexShrink: 0, marginRight: -6 }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         {children}
       </div>
     </>
