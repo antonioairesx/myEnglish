@@ -13,7 +13,6 @@ export function computeStreak(logs: ReviewLog[]): number {
   const days = new Set(logs.map((l) => dayKey(l.reviewedAt)));
   let streak = 0;
   const cursor = new Date();
-  // Se não estudou hoje ainda, a sequência pode contar a partir de ontem.
   if (!days.has(dayKey(cursor.getTime()))) cursor.setTime(cursor.getTime() - DAY);
   while (days.has(dayKey(cursor.getTime()))) {
     streak += 1;
@@ -46,6 +45,20 @@ export function reviewsLast7Days(logs: ReviewLog[]): { label: string; count: num
     out.push({ label: names[d.getDay()], count });
   }
   return out;
+}
+
+/** Total de dias únicos com ao menos uma revisão. */
+export function totalStudyDays(logs: ReviewLog[]): number {
+  return new Set(logs.map((l) => dayKey(l.reviewedAt))).size;
+}
+
+/** Total de minutos estudados (soma durationMs; fallback 9s por card sem duração). */
+export function totalMinutesStudied(logs: ReviewLog[]): number {
+  let ms = 0;
+  for (const l of logs) {
+    ms += l.durationMs ?? 9_000;
+  }
+  return Math.round(ms / 60_000);
 }
 
 /** Estimativa grosseira de tempo, ~9s por card. */

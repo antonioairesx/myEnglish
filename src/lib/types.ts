@@ -14,11 +14,11 @@ export interface Card {
   back: string;
   hint?: string;       // fonética, classe gramatical, etc
   // Estado SM-2
-  reps: number;        // repetições bem sucedidas seguidas
-  ease: number;        // easiness factor (>= 1.3)
-  interval: number;    // dias até a próxima revisão
-  due: number;         // timestamp da próxima revisão
-  lapses: number;      // quantas vezes esqueceu
+  reps: number;
+  ease: number;
+  interval: number;
+  due: number;
+  lapses: number;
   createdAt: number;
 }
 
@@ -29,4 +29,16 @@ export interface ReviewLog {
   rating: Rating;
   reviewedAt: number;
   intervalAfter: number;
+  durationMs?: number; // duração aproximada da revisão individual
+}
+
+export interface SavedPhrase {
+  id: string;
+  front: string;
+  back: string;
+  hint?: string;
+  deckId: string;
+  deckName: string;
+  lang: string;
+  savedAt: number;
 }
