@@ -4,33 +4,40 @@ import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTTS } from '../hooks/useTTS';
 import { schedule, previewInterval } from '../lib/sm2';
-import { updateCard, logReview } from '../lib/store';
-import { BackIcon, SpeakerIcon, CheckIcon } from '../components/icons';
+import { updateCard, logReview, savePhrase, unsavePhrase } from '../lib/store';
+import { BackIcon, SpeakerIcon, CheckIcon, BookmarkIcon } from '../components/icons';
 import type { Card, Rating } from '../lib/types';
 
 const RATINGS: { key: Rating; label: string; cls: string }[] = [
   { key: 'again', label: 'outra vez', cls: 'again' },
-  { key: 'hard', label: 'difícil', cls: 'hard' },
-  { key: 'good', label: 'bom', cls: 'good' },
-  { key: 'easy', label: 'fácil', cls: 'easy' },
+  { key: 'hard',  label: 'difícil',   cls: 'hard'  },
+  { key: 'good',  label: 'bom',       cls: 'good'  },
+  { key: 'easy',  label: 'fácil',     cls: 'easy'  },
 ];
 
 export default function Study() {
   const { deckId } = useParams();
   const nav = useNavigate();
   const { user } = useAuth();
-  const { decks, dueOf, dueAll, loading } = useData();
-  const { speak, supported } = useTTS();
+  const { decks, dueOf, dueAll, loading, saved } = useData();
+  const { speak, speaking, supported } = useTTS();
 
   const [queue, setQueue] = useState<Card[]>([]);
   const [total, setTotal] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
   const inited = useRef(false);
+  const cardStartRef = useRef<number>(Date.now());
 
   const current = queue[0];
   const deckOfCurrent = current ? decks.find((d) => d.id === current.deckId) : undefined;
   const lang = deckOfCurrent?.lang ?? 'en-US';
+
+  // Verifica se o card atual já está salvo (pelo front+deckId)
+  const currentSaved = current
+    ? saved.find((s) => s.front === current.front && s.deckId === current.deckId)
+    : undefined;
 
   useEffect(() => {
     if (inited.current || loading) return;
@@ -41,8 +48,10 @@ export default function Study() {
     if (initial.length === 0) setFinished(true);
   }, [loading, deckId, dueOf, dueAll]);
 
+  // Fala o front automaticamente ao trocar de card
   useEffect(() => {
     if (current && supported && !flipped) {
+      cardStartRef.current = Date.now();
       const t = setTimeout(() => speak(current.front, lang), 180);
       return () => clearTimeout(t);
     }
@@ -51,6 +60,7 @@ export default function Study() {
   async function rate(rating: Rating) {
     if (!user || !current) return;
     const now = Date.now();
+    const durationMs = now - cardStartRef.current;
     const sched = schedule(current, rating, now);
     updateCard(user.uid, current.id, sched);
     logReview(user.uid, {
@@ -59,6 +69,7 @@ export default function Study() {
       rating,
       reviewedAt: now,
       intervalAfter: sched.interval,
+      durationMs,
     });
     setFlipped(false);
     setQueue((q) => {
@@ -72,12 +83,35 @@ export default function Study() {
     });
   }
 
+  async function toggleSave() {
+    if (!user || !current || !deckOfCurrent) return;
+    setSavingId(current.id);
+    try {
+      if (currentSaved) {
+        await unsavePhrase(user.uid, currentSaved.id);
+      } else {
+        await savePhrase(user.uid, {
+          front: current.front,
+          back: current.back,
+          hint: current.hint,
+          deckId: current.deckId,
+          deckName: deckOfCurrent.name,
+          lang: deckOfCurrent.lang,
+          savedAt: Date.now(),
+        });
+      }
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   if (loading || !inited.current) return <CenterMsg text="Preparando sessão…" />;
   if (finished) return <Done total={total} onHome={() => nav('/')} />;
   if (!current) return <CenterMsg text="Nada pra revisar." />;
 
   const done = total - queue.length;
   const progress = total > 0 ? (done / total) * 100 : 0;
+  const isSaving = savingId === current.id;
 
   return (
     <main className="flex flex-col px-5 pt-6 pb-6" style={{ minHeight: '100svh' }}>
@@ -112,18 +146,63 @@ export default function Study() {
           {current.hint && (
             <div style={{ fontSize: 13, color: 'var(--txt-3)', fontStyle: 'italic', marginTop: 8 }}>{current.hint}</div>
           )}
-          {supported && (
+
+          {/* Ações: ouvir + salvar */}
+          <div className="flex items-center gap-2 mt-4">
+            {supported && (
+              <button
+                onClick={(e) => { e.stopPropagation(); speak(current.front, lang); }}
+                className="inline-flex items-center gap-2"
+                style={{
+                  background: speaking ? 'var(--accent)' : 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 9, padding: '8px 12px',
+                  color: speaking ? '#fff' : 'var(--txt-2)',
+                  fontSize: 12,
+                  transition: 'background 0.18s, color 0.18s',
+                }}
+              >
+                <SpeakerIcon size={15} />
+                {speaking ? 'ouvindo…' : 'ouvir'}
+              </button>
+            )}
             <button
-              onClick={(e) => { e.stopPropagation(); speak(current.front, lang); }}
-              className="inline-flex items-center gap-2 mt-4 self-start"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 9, padding: '8px 12px', color: 'var(--txt-2)', fontSize: 12 }}
+              onClick={(e) => { e.stopPropagation(); toggleSave(); }}
+              disabled={isSaving}
+              aria-label={currentSaved ? 'Remover dos salvos' : 'Salvar frase'}
+              style={{
+                background: currentSaved ? 'color-mix(in srgb, var(--accent) 12%, var(--surface))' : 'var(--surface-2)',
+                border: `1px solid ${currentSaved ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 9, padding: '8px 12px',
+                color: currentSaved ? 'var(--accent-txt)' : 'var(--txt-2)',
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 12,
+                transition: 'all 0.18s',
+                opacity: isSaving ? 0.5 : 1,
+              }}
             >
-              <SpeakerIcon size={15} /> ouvir
+              <BookmarkIcon size={15} filled={!!currentSaved} />
+              {currentSaved ? 'salvo' : 'salvar'}
             </button>
-          )}
+          </div>
+
           {flipped && (
             <div className="animate-fade-up" style={{ marginTop: 22, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontSize: 17, color: 'var(--txt)', lineHeight: 1.5 }}>{current.back}</div>
+              {/* Ouvir a tradução também */}
+              {supported && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); speak(current.back, 'pt-BR'); }}
+                  className="inline-flex items-center gap-2 mt-3"
+                  style={{
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    borderRadius: 9, padding: '6px 10px',
+                    color: 'var(--txt-3)', fontSize: 11,
+                  }}
+                >
+                  <SpeakerIcon size={13} /> ouvir tradução
+                </button>
+              )}
             </div>
           )}
         </div>
