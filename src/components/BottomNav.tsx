@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, LayersIcon, ChartIcon } from './icons';
+import { HomeIcon, LayersIcon, ChartIcon, ProfileIcon } from './icons';
 
 const tabs = [
-  { to: '/', label: 'Hoje', Icon: HomeIcon, end: true },
-  { to: '/decks', label: 'Decks', Icon: LayersIcon, end: false },
-  { to: '/stats', label: 'Progresso', Icon: ChartIcon, end: false },
+  { to: '/',        label: 'Hoje',      Icon: HomeIcon,    end: true  },
+  { to: '/decks',   label: 'Decks',     Icon: LayersIcon,  end: false },
+  { to: '/stats',   label: 'Progresso', Icon: ChartIcon,   end: false },
+  { to: '/profile', label: 'Perfil',    Icon: ProfileIcon, end: false },
 ];
 
 export default function BottomNav() {
