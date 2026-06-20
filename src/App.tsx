@@ -8,6 +8,7 @@ import Decks from './screens/Decks';
 import DeckDetail from './screens/DeckDetail';
 import Study from './screens/Study';
 import Stats from './screens/Stats';
+import Profile from './screens/Profile';
 
 function Shell() {
   const { user, loading } = useAuth();
@@ -23,18 +24,18 @@ function Shell() {
 
   if (!user) return <Login />;
 
-  // Esconde a navegação durante a sessão de estudo (foco total).
   const inStudy = location.pathname.startsWith('/study');
 
   return (
     <DataProvider>
       <Routes>
-        <Route path="/" element={<Plan />} />
-        <Route path="/decks" element={<Decks />} />
+        <Route path="/"           element={<Plan />} />
+        <Route path="/decks"      element={<Decks />} />
         <Route path="/decks/:deckId" element={<DeckDetail />} />
-        <Route path="/study" element={<Study />} />
+        <Route path="/study"      element={<Study />} />
         <Route path="/study/:deckId" element={<Study />} />
-        <Route path="/stats" element={<Stats />} />
+        <Route path="/stats"      element={<Stats />} />
+        <Route path="/profile"    element={<Profile />} />
       </Routes>
       {!inStudy && <BottomNav />}
     </DataProvider>
