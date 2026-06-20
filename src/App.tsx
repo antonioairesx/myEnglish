@@ -9,6 +9,7 @@ import DeckDetail from './screens/DeckDetail';
 import Study from './screens/Study';
 import Stats from './screens/Stats';
 import Profile from './screens/Profile';
+import Saved from './screens/Saved';
 
 function Shell() {
   const { user, loading } = useAuth();
@@ -29,13 +30,14 @@ function Shell() {
   return (
     <DataProvider>
       <Routes>
-        <Route path="/"           element={<Plan />} />
-        <Route path="/decks"      element={<Decks />} />
+        <Route path="/"              element={<Plan />} />
+        <Route path="/decks"         element={<Decks />} />
         <Route path="/decks/:deckId" element={<DeckDetail />} />
-        <Route path="/study"      element={<Study />} />
+        <Route path="/study"         element={<Study />} />
         <Route path="/study/:deckId" element={<Study />} />
-        <Route path="/stats"      element={<Stats />} />
-        <Route path="/profile"    element={<Profile />} />
+        <Route path="/stats"         element={<Stats />} />
+        <Route path="/profile"       element={<Profile />} />
+        <Route path="/saved"         element={<Saved />} />
       </Routes>
       {!inStudy && <BottomNav />}
     </DataProvider>
