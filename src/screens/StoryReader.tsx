@@ -165,15 +165,24 @@ export default function StoryReader() {
         onTouchStart={() => { if (scrolling) setScrolling(false); }}
         onWheel={() => { if (scrolling) setScrolling(false); }}
       >
-        <p style={{
-          fontSize: 19,
-          lineHeight: 1.85,
-          color: 'var(--txt)',
-          fontFamily: 'Georgia, "Times New Roman", serif',
-          letterSpacing: '0.01em',
-        }}>
-          {story.body}
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {story.body.split('\n').map((line, i) => (
+            line.trim() === '' ? (
+              <div key={i} style={{ height: 8 }} />
+            ) : (
+              <p key={i} style={{
+                fontSize: 20,
+                lineHeight: 1.7,
+                color: 'var(--txt)',
+                fontFamily: 'Georgia, "Times New Roman", serif',
+                letterSpacing: '0.01em',
+                margin: 0,
+              }}>
+                {line}
+              </p>
+            )
+          ))}
+        </div>
 
         {/* Fim do texto */}
         <div style={{ marginTop: 48, textAlign: 'center', color: 'var(--txt-3)' }}>
