@@ -10,6 +10,8 @@ import Study from './screens/Study';
 import Stats from './screens/Stats';
 import Profile from './screens/Profile';
 import Saved from './screens/Saved';
+import Stories from './screens/Stories';
+import StoryReader from './screens/StoryReader';
 
 function Shell() {
   const { user, loading } = useAuth();
@@ -25,21 +27,24 @@ function Shell() {
 
   if (!user) return <Login />;
 
-  const inStudy = location.pathname.startsWith('/study');
+  const inStudy  = location.pathname.startsWith('/study');
+  const inReader = location.pathname.startsWith('/stories/');
 
   return (
     <DataProvider>
       <Routes>
-        <Route path="/"              element={<Plan />} />
-        <Route path="/decks"         element={<Decks />} />
-        <Route path="/decks/:deckId" element={<DeckDetail />} />
-        <Route path="/study"         element={<Study />} />
-        <Route path="/study/:deckId" element={<Study />} />
-        <Route path="/stats"         element={<Stats />} />
-        <Route path="/profile"       element={<Profile />} />
-        <Route path="/saved"         element={<Saved />} />
+        <Route path="/"                  element={<Plan />} />
+        <Route path="/decks"             element={<Decks />} />
+        <Route path="/decks/:deckId"     element={<DeckDetail />} />
+        <Route path="/study"             element={<Study />} />
+        <Route path="/study/:deckId"     element={<Study />} />
+        <Route path="/stats"             element={<Stats />} />
+        <Route path="/profile"           element={<Profile />} />
+        <Route path="/saved"             element={<Saved />} />
+        <Route path="/stories"           element={<Stories />} />
+        <Route path="/stories/:storyId"  element={<StoryReader />} />
       </Routes>
-      {!inStudy && <BottomNav />}
+      {!inStudy && !inReader && <BottomNav />}
     </DataProvider>
   );
 }
