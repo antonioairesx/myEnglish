@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchStory } from '../lib/store';
-import { useTTS } from '../hooks/useTTS';
 import { BackIcon, SpeakerIcon } from '../components/icons';
 import type { Story } from '../lib/types';
+
+const GOOGLE_TTS_KEY = import.meta.env.VITE_GOOGLE_TTS_KEY as string;
 
 const LEVEL_COLORS: Record<string, string> = {
   A1: 'var(--good-txt)', A2: 'var(--easy-txt)',
   B1: 'var(--hard-txt)', B2: 'var(--again-txt)', C1: 'var(--accent-txt)',
 };
 
-/* Ícones SVG inline */
 const PlayIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d="M6 4.75a.75.75 0 0 0-1.5 0v14.5a.75.75 0 0 0 1.14.64l11-7.25a.75.75 0 0 0 0-1.28l-11-7.25A.75.75 0 0 0 6 4.75Z" />
@@ -31,51 +31,51 @@ const SpeedIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 );
 
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const SCROLL_SPEEDS = [
-  { label: 'Lento',   px: 18 },
-  { label: 'Normal',  px: 32 },
-  { label: 'Rápido',  px: 52 },
-  { label: 'Veloz',   px: 80 },
+  { label: 'Lento',  px: 18 },
+  { label: 'Normal', px: 32 },
+  { label: 'Rápido', px: 52 },
+  { label: 'Veloz',  px: 80 },
 ];
+
+const TTS_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5];
 
 export default function StoryReader() {
   const { storyId } = useParams();
   const nav = useNavigate();
-  const { speak, stop, speaking, supported } = useTTS();
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
   const [scrolling, setScrolling] = useState(false);
-  const [scrollSpeedIdx, setScrollSpeedIdx] = useState(1); // Normal
-  const [ttsRate, setTtsRate] = useState(0.95);
+  const [scrollSpeedIdx, setScrollSpeedIdx] = useState(1);
+  const [ttsSpeed, setTtsSpeed] = useState(1.0);
   const [showSpeedPanel, setShowSpeedPanel] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
-  const accRef = useRef(0); // acumulador sub-pixel
+  const accRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!storyId) return;
     fetchStory(storyId).then((s) => { setStory(s); setLoading(false); });
   }, [storyId]);
 
-  // Scroll automático via requestAnimationFrame
   const scrollStep = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    const pxPerFrame = SCROLL_SPEEDS[scrollSpeedIdx].px / 60; // px por frame (60fps)
+    const pxPerFrame = SCROLL_SPEEDS[scrollSpeedIdx].px / 60;
     accRef.current += pxPerFrame;
     if (accRef.current >= 1) {
       const toScroll = Math.floor(accRef.current);
       accRef.current -= toScroll;
       el.scrollTop += toScroll;
     }
-    // Progresso
     const max = el.scrollHeight - el.clientHeight;
     setProgress(max > 0 ? Math.min(1, el.scrollTop / max) : 0);
-    // Para ao chegar no fim
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
       setScrolling(false);
       return;
@@ -97,11 +97,69 @@ export default function StoryReader() {
     setShowSpeedPanel(false);
   }
 
-  function handleTTS() {
+  async function handleTTS() {
     if (!story) return;
-    if (speaking) { stop(); return; }
-    speak(story.body, 'en-US', ttsRate);
+
+    // Se está tocando, para
+    if (ttsPlaying && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setTtsPlaying(false);
+      return;
+    }
+
+    setTtsLoading(true);
+    try {
+      const response = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: { text: story.body.replace(/\n/g, ' ') },
+            voice: {
+              languageCode: 'en-US',
+              name: 'en-US-Standard-D', // voz masculina natural
+            },
+            audioConfig: {
+              audioEncoding: 'MP3',
+              speakingRate: ttsSpeed,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error('TTS error');
+
+      const data = await response.json();
+      const audioContent = data.audioContent;
+
+      // Converte base64 para blob
+      const byteChars = atob(audioContent);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { setTtsPlaying(false); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setTtsPlaying(false); };
+      await audio.play();
+      setTtsPlaying(true);
+    } catch (err) {
+      console.error('TTS error:', err);
+    } finally {
+      setTtsLoading(false);
+    }
   }
+
+  // Para o áudio ao sair da tela
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -125,7 +183,7 @@ export default function StoryReader() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100svh', background: 'var(--bg)' }}>
 
-      {/* Header fixo */}
+      {/* Header */}
       <header style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '14px 16px',
@@ -133,7 +191,7 @@ export default function StoryReader() {
         background: 'var(--surface)',
         flexShrink: 0,
       }}>
-        <button onClick={() => { stop(); nav('/stories'); }} className="icon-btn" aria-label="Voltar">
+        <button onClick={() => { if (audioRef.current) { audioRef.current.pause(); } nav('/stories'); }} className="icon-btn" aria-label="Voltar">
           <BackIcon />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -152,21 +210,15 @@ export default function StoryReader() {
         <div style={{ height: '100%', width: `${progress * 100}%`, background: 'var(--accent)', transition: 'width 0.1s linear' }} />
       </div>
 
-      {/* Corpo do texto */}
+      {/* Corpo */}
       <div
         ref={containerRef}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '28px 22px 120px',
-          scrollbarWidth: 'none',
-          // Toca no scroll manual para pausar auto-scroll
-        }}
+        style={{ flex: 1, overflowY: 'auto', padding: '28px 22px 120px', scrollbarWidth: 'none' }}
         onTouchStart={() => { if (scrolling) setScrolling(false); }}
         onWheel={() => { if (scrolling) setScrolling(false); }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {story.body.split('\n').map((line, i) => (
+          {story.body.split('\n').map((line, i) =>
             line.trim() === '' ? (
               <div key={i} style={{ height: 8 }} />
             ) : (
@@ -181,10 +233,9 @@ export default function StoryReader() {
                 {line}
               </p>
             )
-          ))}
+          )}
         </div>
 
-        {/* Fim do texto */}
         <div style={{ marginTop: 48, textAlign: 'center', color: 'var(--txt-3)' }}>
           <div style={{ width: 40, height: 1, background: 'var(--border)', margin: '0 auto 16px' }} />
           <p style={{ fontSize: 13 }}>Fim da leitura</p>
@@ -193,50 +244,40 @@ export default function StoryReader() {
 
       {/* Painel de velocidade */}
       {showSpeedPanel && (
-        <div
-          className="animate-fade-up"
-          style={{
-            position: 'absolute', bottom: 100, left: 16, right: 16,
-            background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 16, padding: 16, zIndex: 50,
-            boxShadow: 'var(--shadow)',
-          }}
-        >
-          <p style={{ fontSize: 11, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+        <div className="animate-fade-up" style={{
+          position: 'fixed', bottom: 90, left: 16, right: 16,
+          maxWidth: 448, margin: '0 auto',
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 16, padding: 16, zIndex: 50,
+          boxShadow: 'var(--shadow)',
+        }}>
+          <p style={{ fontSize: 11, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Velocidade do scroll
           </p>
           <div className="grid grid-cols-4 gap-2 mb-4">
             {SCROLL_SPEEDS.map((s, i) => (
-              <button
-                key={s.label}
-                onClick={() => setScrollSpeedIdx(i)}
-                style={{
-                  padding: '8px 4px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                  border: `1.5px solid ${scrollSpeedIdx === i ? 'var(--accent)' : 'var(--border)'}`,
-                  background: scrollSpeedIdx === i ? 'var(--accent)' : 'var(--surface-2)',
-                  color: scrollSpeedIdx === i ? 'var(--on-accent)' : 'var(--txt-2)',
-                }}
-              >
+              <button key={s.label} onClick={() => setScrollSpeedIdx(i)} style={{
+                padding: '8px 4px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                border: `1.5px solid ${scrollSpeedIdx === i ? 'var(--accent)' : 'var(--border)'}`,
+                background: scrollSpeedIdx === i ? 'var(--accent)' : 'var(--surface-2)',
+                color: scrollSpeedIdx === i ? 'var(--on-accent)' : 'var(--txt-2)',
+              }}>
                 {s.label}
               </button>
             ))}
           </div>
 
-          <p style={{ fontSize: 11, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+          <p style={{ fontSize: 11, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Velocidade do áudio
           </p>
-          <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-            {SPEEDS.map((sp) => (
-              <button
-                key={sp}
-                onClick={() => setTtsRate(sp)}
-                style={{
-                  flexShrink: 0, padding: '7px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600,
-                  border: `1.5px solid ${ttsRate === sp ? 'var(--accent)' : 'var(--border)'}`,
-                  background: ttsRate === sp ? 'var(--accent)' : 'var(--surface-2)',
-                  color: ttsRate === sp ? 'var(--on-accent)' : 'var(--txt-2)',
-                }}
-              >
+          <div className="flex gap-2">
+            {TTS_SPEEDS.map((sp) => (
+              <button key={sp} onClick={() => setTtsSpeed(sp)} style={{
+                flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                border: `1.5px solid ${ttsSpeed === sp ? 'var(--accent)' : 'var(--border)'}`,
+                background: ttsSpeed === sp ? 'var(--accent)' : 'var(--surface-2)',
+                color: ttsSpeed === sp ? 'var(--on-accent)' : 'var(--txt-2)',
+              }}>
                 {sp}x
               </button>
             ))}
@@ -244,7 +285,7 @@ export default function StoryReader() {
         </div>
       )}
 
-      {/* Barra de controles fixa na base */}
+      {/* Controles */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         maxWidth: 480, margin: '0 auto',
@@ -255,7 +296,6 @@ export default function StoryReader() {
         display: 'flex', alignItems: 'center', gap: 10,
         zIndex: 40,
       }}>
-
         {/* Play/Pause scroll */}
         <button
           onClick={toggleScroll}
@@ -274,28 +314,35 @@ export default function StoryReader() {
           {scrolling ? `Pausar · ${currentScrollSpeed.label}` : 'Auto-scroll'}
         </button>
 
-        {/* Áudio TTS */}
-        {supported && (
-          <button
-            onClick={handleTTS}
-            aria-label={speaking ? 'Parar áudio' : 'Ouvir texto'}
-            style={{
-              width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: speaking ? 'var(--accent)' : 'var(--surface-2)',
-              border: `1.5px solid ${speaking ? 'var(--accent)' : 'var(--border)'}`,
-              color: speaking ? 'var(--on-accent)' : 'var(--txt-2)',
-              transition: 'all 0.18s var(--ease-out)',
-            }}
-          >
+        {/* TTS */}
+        <button
+          onClick={handleTTS}
+          disabled={ttsLoading}
+          aria-label={ttsPlaying ? 'Parar áudio' : 'Ouvir texto'}
+          style={{
+            width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: ttsPlaying ? 'var(--accent)' : 'var(--surface-2)',
+            border: `1.5px solid ${ttsPlaying ? 'var(--accent)' : 'var(--border)'}`,
+            color: ttsPlaying ? 'var(--on-accent)' : ttsLoading ? 'var(--txt-3)' : 'var(--txt-2)',
+            transition: 'all 0.18s var(--ease-out)',
+            opacity: ttsLoading ? 0.6 : 1,
+          }}
+        >
+          {ttsLoading ? (
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round">
+                <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
+              </path>
+            </svg>
+          ) : (
             <SpeakerIcon size={19} />
-          </button>
-        )}
+          )}
+        </button>
 
         {/* Velocidade */}
         <button
           onClick={() => setShowSpeedPanel((v) => !v)}
-          aria-label="Ajustar velocidade"
           style={{
             width: 48, height: 48, borderRadius: 12, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
