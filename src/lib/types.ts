@@ -42,3 +42,14 @@ export interface SavedPhrase {
   lang: string;
   savedAt: number;
 }
+
+export type StoryLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1';
+
+export interface Story {
+  id: string;
+  title: string;
+  level: StoryLevel;
+  body: string;        // texto completo
+  durationMin: number; // minutos estimados de leitura
+  createdAt: number;
+}

@@ -121,3 +121,31 @@ export function watchSaved(uid: string, cb: (saved: SavedPhrase[]) => void): Uns
     cb(saved);
   });
 }
+
+/* ---------- Histórias (leitura) ---------- */
+
+import type { Story, StoryLevel } from './types';
+import { query as fsQuery, orderBy, limit, startAfter, type DocumentSnapshot } from 'firebase/firestore';
+
+const storiesCol = () => collection(db, 'stories');
+
+export async function fetchStories(
+  level: StoryLevel | 'all',
+  pageSize = 20,
+  after?: DocumentSnapshot,
+): Promise<{ stories: Story[]; lastDoc: DocumentSnapshot | null }> {
+  let q = level === 'all'
+    ? fsQuery(storiesCol(), orderBy('createdAt', 'desc'), limit(pageSize))
+    : fsQuery(storiesCol(), where('level', '==', level), orderBy('createdAt', 'desc'), limit(pageSize));
+  if (after) q = fsQuery(q, startAfter(after));
+  const snap = await getDocs(q);
+  const stories = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Story);
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+  return { stories, lastDoc };
+}
+
+export async function fetchStory(id: string): Promise<Story | null> {
+  const snap = await getDocs(fsQuery(storiesCol(), where('__name__', '==', id)));
+  if (snap.empty) return null;
+  return { id: snap.docs[0].id, ...snap.docs[0].data() } as Story;
+}
