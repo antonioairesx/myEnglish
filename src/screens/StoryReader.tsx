@@ -42,7 +42,7 @@ const TTS_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5];
 
 // Chars por segundo por velocidade (estimativa baseada em inglês nativo ~150 palavras/min)
 const CHARS_PER_SEC: Record<number, number> = {
-  0.5: 6, 0.75: 9, 1.0: 12, 1.25: 15, 1.5: 18,
+  0.5: 6.25, 0.75: 9.4, 1.0: 12.5, 1.25: 15.6, 1.5: 18.75,
 };
 
 export default function StoryReader() {
