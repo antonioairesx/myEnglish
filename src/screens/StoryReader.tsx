@@ -40,11 +40,17 @@ const SCROLL_SPEEDS = [
 
 const TTS_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5];
 
+// Chars por segundo por velocidade (estimativa baseada em inglês nativo ~150 palavras/min)
+const CHARS_PER_SEC: Record<number, number> = {
+  0.5: 6, 0.75: 9, 1.0: 12, 1.25: 15, 1.5: 18,
+};
+
 export default function StoryReader() {
   const { storyId } = useParams();
   const nav = useNavigate();
 
   const [story, setStory] = useState<Story | null>(null);
+  const [lines, setLines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [scrolling, setScrolling] = useState(false);
   const [scrollSpeedIdx, setScrollSpeedIdx] = useState(1);
@@ -53,15 +59,22 @@ export default function StoryReader() {
   const [progress, setProgress] = useState(0);
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [activeLine, setActiveLine] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLParagraphElement | null)[]>([]);
   const rafRef = useRef<number | null>(null);
   const accRef = useRef(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     if (!storyId) return;
-    fetchStory(storyId).then((s) => { setStory(s); setLoading(false); });
+    fetchStory(storyId).then((s) => {
+      setStory(s);
+      if (s) setLines(s.body.split('\n'));
+      setLoading(false);
+    });
   }, [storyId]);
 
   const scrollStep = useCallback(() => {
@@ -92,21 +105,30 @@ export default function StoryReader() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [scrolling, scrollStep]);
 
-  function toggleScroll() {
-    setScrolling((s) => !s);
-    setShowSpeedPanel(false);
+  function clearTtsTimers() {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
   }
+
+  function stopTts() {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    clearTtsTimers();
+    setTtsPlaying(false);
+    setActiveLine(null);
+  }
+
+  // Scroll automático para a linha ativa
+  useEffect(() => {
+    if (activeLine === null) return;
+    const el = lineRefs.current[activeLine];
+    if (el && containerRef.current) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [activeLine]);
 
   async function handleTTS() {
     if (!story) return;
-
-    // Se está tocando, para
-    if (ttsPlaying && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-      setTtsPlaying(false);
-      return;
-    }
+    if (ttsPlaying) { stopTts(); return; }
 
     setTtsLoading(true);
     try {
@@ -117,25 +139,15 @@ export default function StoryReader() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             input: { text: story.body.replace(/\n/g, ' ') },
-            voice: {
-              languageCode: 'en-US',
-              name: 'en-US-Standard-D', // voz masculina natural
-            },
-            audioConfig: {
-              audioEncoding: 'MP3',
-              speakingRate: ttsSpeed,
-            },
+            voice: { languageCode: 'en-US', name: 'en-US-Standard-D' },
+            audioConfig: { audioEncoding: 'MP3', speakingRate: ttsSpeed },
           }),
         }
       );
 
       if (!response.ok) throw new Error('TTS error');
-
       const data = await response.json();
-      const audioContent = data.audioContent;
-
-      // Converte base64 para blob
-      const byteChars = atob(audioContent);
+      const byteChars = atob(data.audioContent);
       const byteArr = new Uint8Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
       const blob = new Blob([byteArr], { type: 'audio/mp3' });
@@ -143,8 +155,27 @@ export default function StoryReader() {
 
       const audio = new Audio(url);
       audioRef.current = audio;
-      audio.onended = () => { setTtsPlaying(false); URL.revokeObjectURL(url); };
-      audio.onerror = () => { setTtsPlaying(false); };
+
+      // Agenda destaque de cada linha baseado em tempo estimado
+      const charsPerSec = CHARS_PER_SEC[ttsSpeed] ?? 12;
+      const nonEmptyLines = lines.map((line, idx) => ({ line, idx })).filter(({ line }) => line.trim() !== '');
+
+      let elapsed = 0;
+      nonEmptyLines.forEach(({ line, idx }) => {
+        const duration = (line.length / charsPerSec) * 1000;
+        const t = setTimeout(() => setActiveLine(idx), elapsed);
+        timersRef.current.push(t);
+        elapsed += duration;
+      });
+
+      audio.onended = () => {
+        setTtsPlaying(false);
+        setActiveLine(null);
+        clearTtsTimers();
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => { stopTts(); };
+
       await audio.play();
       setTtsPlaying(true);
     } catch (err) {
@@ -154,12 +185,9 @@ export default function StoryReader() {
     }
   }
 
-  // Para o áudio ao sair da tela
   useEffect(() => {
-    return () => {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    };
-  }, []);
+    return () => { stopTts(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -183,7 +211,6 @@ export default function StoryReader() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100svh', background: 'var(--bg)' }}>
 
-      {/* Header */}
       <header style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '14px 16px',
@@ -191,7 +218,7 @@ export default function StoryReader() {
         background: 'var(--surface)',
         flexShrink: 0,
       }}>
-        <button onClick={() => { if (audioRef.current) { audioRef.current.pause(); } nav('/stories'); }} className="icon-btn" aria-label="Voltar">
+        <button onClick={() => { stopTts(); nav('/stories'); }} className="icon-btn" aria-label="Voltar">
           <BackIcon />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -205,12 +232,10 @@ export default function StoryReader() {
         </div>
       </header>
 
-      {/* Barra de progresso */}
       <div style={{ height: 3, background: 'var(--border)', flexShrink: 0 }}>
         <div style={{ height: '100%', width: `${progress * 100}%`, background: 'var(--accent)', transition: 'width 0.1s linear' }} />
       </div>
 
-      {/* Corpo */}
       <div
         ref={containerRef}
         style={{ flex: 1, overflowY: 'auto', padding: '28px 22px 120px', scrollbarWidth: 'none' }}
@@ -218,18 +243,29 @@ export default function StoryReader() {
         onWheel={() => { if (scrolling) setScrolling(false); }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {story.body.split('\n').map((line, i) =>
+          {lines.map((line, i) =>
             line.trim() === '' ? (
               <div key={i} style={{ height: 8 }} />
             ) : (
-              <p key={i} style={{
-                fontSize: 20,
-                lineHeight: 1.7,
-                color: 'var(--txt)',
-                fontFamily: 'Georgia, "Times New Roman", serif',
-                letterSpacing: '0.01em',
-                margin: 0,
-              }}>
+              <p
+                key={i}
+                ref={(el) => { lineRefs.current[i] = el; }}
+                style={{
+                  fontSize: 20,
+                  lineHeight: 1.7,
+                  color: activeLine === i ? 'var(--txt)' : 'var(--txt-2)',
+                  fontFamily: 'Georgia, "Times New Roman", serif',
+                  letterSpacing: '0.01em',
+                  margin: 0,
+                  borderLeft: activeLine === i ? '3px solid var(--accent)' : '3px solid transparent',
+                  paddingLeft: activeLine === i ? 12 : 0,
+                  transition: 'all 0.25s var(--ease-out)',
+                  background: activeLine === i
+                    ? 'color-mix(in srgb, var(--accent) 6%, transparent)'
+                    : 'transparent',
+                  borderRadius: activeLine === i ? 6 : 0,
+                }}
+              >
                 {line}
               </p>
             )
@@ -242,7 +278,6 @@ export default function StoryReader() {
         </div>
       </div>
 
-      {/* Painel de velocidade */}
       {showSpeedPanel && (
         <div className="animate-fade-up" style={{
           position: 'fixed', bottom: 90, left: 16, right: 16,
@@ -266,7 +301,6 @@ export default function StoryReader() {
               </button>
             ))}
           </div>
-
           <p style={{ fontSize: 11, color: 'var(--txt-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
             Velocidade do áudio
           </p>
@@ -285,7 +319,6 @@ export default function StoryReader() {
         </div>
       )}
 
-      {/* Controles */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         maxWidth: 480, margin: '0 auto',
@@ -296,9 +329,8 @@ export default function StoryReader() {
         display: 'flex', alignItems: 'center', gap: 10,
         zIndex: 40,
       }}>
-        {/* Play/Pause scroll */}
         <button
-          onClick={toggleScroll}
+          onClick={() => { setScrolling((s) => !s); setShowSpeedPanel(false); }}
           style={{
             flex: 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -314,7 +346,6 @@ export default function StoryReader() {
           {scrolling ? `Pausar · ${currentScrollSpeed.label}` : 'Auto-scroll'}
         </button>
 
-        {/* TTS */}
         <button
           onClick={handleTTS}
           disabled={ttsLoading}
@@ -330,8 +361,8 @@ export default function StoryReader() {
           }}
         >
           {ttsLoading ? (
-            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round">
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
                 <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
               </path>
             </svg>
@@ -340,7 +371,6 @@ export default function StoryReader() {
           )}
         </button>
 
-        {/* Velocidade */}
         <button
           onClick={() => setShowSpeedPanel((v) => !v)}
           style={{
