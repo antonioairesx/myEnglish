@@ -1,11 +1,19 @@
 import { NavLink } from 'react-router-dom';
 import { HomeIcon, LayersIcon, ChartIcon, ProfileIcon } from './icons';
 
+const BookOpenIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+  </svg>
+);
+
 const tabs = [
-  { to: '/',        label: 'Hoje',      Icon: HomeIcon,    end: true  },
-  { to: '/decks',   label: 'Decks',     Icon: LayersIcon,  end: false },
-  { to: '/stats',   label: 'Progresso', Icon: ChartIcon,   end: false },
-  { to: '/profile', label: 'Perfil',    Icon: ProfileIcon, end: false },
+  { to: '/',         label: 'Hoje',     Icon: HomeIcon,    end: true  },
+  { to: '/decks',    label: 'Decks',    Icon: LayersIcon,  end: false },
+  { to: '/stories',  label: 'Leituras', Icon: BookOpenIcon,end: false },
+  { to: '/stats',    label: 'Progresso',Icon: ChartIcon,   end: false },
+  { to: '/profile',  label: 'Perfil',   Icon: ProfileIcon, end: false },
 ];
 
 export default function BottomNav() {
@@ -33,7 +41,7 @@ export default function BottomNav() {
             })}
           >
             <Icon size={22} />
-            <span style={{ fontSize: 11, fontWeight: 500 }}>{label}</span>
+            <span style={{ fontSize: 10, fontWeight: 500 }}>{label}</span>
           </NavLink>
         ))}
       </div>
